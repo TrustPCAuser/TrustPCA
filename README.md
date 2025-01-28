@@ -6,6 +6,9 @@ TrustPCA is a webtool that implements a probabilistic framework that predicts th
 - **Paper:** a link will be added after acceptance
 
 ## Tool specification
+- **Hint:** In its current version, TrustPCA computes the PC space from modern West Eurasian populations. Therefore, the uncertainty predictions from TrustPCA are only meaningful for (ancient) human individuals from West Eurasia from the Mesolithic epoch or later.
 - **Input:** Genotype information of (ancient) human individuals based on the Human Origins array, covering approx. 600.000 sites.
 - **Input format:** EIGENSTRAT format.
-- **Hint:** In its current version, TrustPCA computes the PC space from modern West Eurasian populations. Therefore, the uncertainty predictions from TrustPCA are only meaningful for (ancient) individuals from West Eurasia from the Mesolithic epoch or later.
+- **Output:** 
+  - PC scatter plot (PC2 vs. PC1) based on the modern West Eurasian map. 
+  - SmartPCA projections of the given (ancient) individuals together with uncertainty predictions of these projections. The uncertainties are visualized as confidence ellipses.
