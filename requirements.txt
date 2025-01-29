@@ -1,8 +1,5 @@
 pandas
 numpy
-copy
-pickle
-tempfile
 plotly
 joblib
 scipy
