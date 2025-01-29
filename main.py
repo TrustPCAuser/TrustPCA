@@ -10,7 +10,7 @@ from joblib import Parallel, delayed
 from scipy.stats import chi2
 import plotly.io as pio
 import os
-from weasyprint import HTML
+# from weasyprint import HTML
 from io import BytesIO
 from io import StringIO
 import itertools
@@ -375,7 +375,7 @@ def create_pdf_report(html_text, plotly_figures): #s, table_html):
     #"""
 
     # HTML in PDF umwandeln
-    pdf = HTML(string=full_html).write_pdf()
+    pdf = None #HTML(string=full_html).write_pdf()
     return BytesIO(pdf)
 
 app_description = """
