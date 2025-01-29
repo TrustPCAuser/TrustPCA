@@ -110,7 +110,7 @@ def plot_missing(nines):
         xaxis_title="Samples",
         yaxis_title="Missing Data (%)",
         xaxis=dict(tickangle=45),
-        template="plotly_white",
+        template="simple_white",
         height=500,
         width=1200,
         showlegend=True,
@@ -172,7 +172,7 @@ def color_plot(modern_df, taus, inds):
         title="Modern Samples",
         xaxis_title="PC1",
         yaxis_title="PC2",
-        template="plotly_white",
+        template="simple_white",
         legend=dict(title="Group")
     )
 
