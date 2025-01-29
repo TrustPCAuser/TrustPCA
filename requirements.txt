@@ -1,0 +1,13 @@
+pandas
+numpy
+streamlit
+copy
+pickle
+tempfile
+plotly
+joblib
+scipy
+weasyprint
+itertools
+matplotlib
+tueplots

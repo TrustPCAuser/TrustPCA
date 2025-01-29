@@ -5,8 +5,6 @@ import copy
 import pickle
 import tempfile
 
-import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 from joblib import Parallel, delayed
 from scipy.stats import chi2
@@ -14,7 +12,6 @@ import plotly.io as pio
 import os
 from weasyprint import HTML
 from io import BytesIO
-import streamlit as st
 from io import StringIO
 import itertools
 import plotly.express as px
