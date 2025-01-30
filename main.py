@@ -16,8 +16,8 @@ from io import BytesIO
 from io import StringIO
 import itertools
 import plotly.express as px
-import matplotlib.pyplot as plt
-from tueplots import axes, bundles
+
+import streamlit.components.v1 as components
 
 ###########################################################################################################
 #file handling stuff, parsing
@@ -94,7 +94,7 @@ def plot_missing(nines):
     fig.add_trace(go.Bar(
         x=sample_names,
         y=missing_percentage,
-        marker=dict(color='grey'),
+        marker=dict(color='#ff9900'),
         hoverinfo="x+y",
     ))
     fig.add_hline(y=100,
@@ -113,14 +113,18 @@ def plot_missing(nines):
         #showlegend=True,
         plot_bgcolor='white',  
         paper_bgcolor='white',
+        font_size=14,
+        font_color='black',
+
     )
     return fig
 
 def compute_tau(geno, genomean, V, is_not_nani):
     snp_drift = np.sqrt((genomean / 2) * (1 - genomean / 2))
     geno_norm = (geno - genomean) / snp_drift
+    print(V.shape)
     V_obs = V[is_not_nani]
-    proj_factor = np.linalg.inv(V_obs[:, 0:2].T @ V_obs[:, 0:2]) @ V_obs[:, 0:2].T
+    proj_factor = np.linalg.inv(V_obs.T @ V_obs) @ V_obs.T
     tau = proj_factor @ geno_norm[is_not_nani]
     return tau
 
@@ -160,7 +164,9 @@ def color_plot(modern_df, taus, inds):
                     color=f"rgb({sty[0][0]*255},{sty[0][1]*255},{sty[0][2]*255})",  # Farbe in RGB
                     line=dict(width=0.1, color='white')  # Kantenfarbe
                 ),
-                name=df_sub['Group'].unique()[0]  # Gruppenname als Legende
+                name=df_sub['Group'].unique()[0],  # Gruppenname als Legende,
+                meta=df_sub['Group'],
+                hovertemplate='%{meta}'
             )
         )
 
@@ -182,7 +188,7 @@ def color_plot(modern_df, taus, inds):
 
     fig.update_layout(
         width=1300,
-        height=1100,
+        height=750,
         title="Modern Samples",
         xaxis_title="PC1",
         yaxis_title="PC2",
@@ -191,20 +197,23 @@ def color_plot(modern_df, taus, inds):
         font_color='black',
         plot_bgcolor='white',
         paper_bgcolor='white',
+        hoverlabel=dict(
+            bgcolor="white",
+        ),
         legend=dict(
             #title="Modern West Eurasians",
             itemsizing='constant',  
             traceorder="normal",  
             orientation="h",
             x=0, #x=1.05,
-            y=-0.6, #y=0.5, 
+            y=0, #y=0.5, 
             xanchor="left",
             yanchor="bottom", 
             font=dict(
                 size=12,
                 family="Arial" 
             ),
-            itemwidth=120,
+            itemwidth=50,
             title_font=dict(
                 size=12
             ),
@@ -261,11 +270,11 @@ def base_plot(modern, taus, inds, color_lookup):
             name=name,
             text=sample_text,
             textposition="top center",
-            legendgroup=name
+            legendgroup=name,
         ))
     fig.update_layout(
         width=1300,
-        height=700,
+        height=750,
         xaxis_title="PC1",
         yaxis_title="PC2",
         template='simple_white',
@@ -340,124 +349,34 @@ def set_active_tab(tab_name):
 def update_percentiles():
     st.session_state["selected_percentiles"] = st.session_state["percentile_selector"]
 
-def create_pdf_report(html_text, plotly_figures): #s, table_html):
-    # Plots als SVG exportieren und in HTML einfügen
-    plot_svgs = []
-    for fig in plotly_figures:
-        svg_data = pio.to_image(fig, format="svg", width=600, height=400)
-        plot_svgs.append(svg_data.decode("utf-8"))  # SVG-Daten als Text
-
-    # Komplette HTML-Struktur für das PDF
-    full_html = f"""
-    <html>
-    <head>
-        <style>
-            body {{
-                font-family: Arial, sans-serif;
-                margin: 20px;
-            }}
-            .table {{
-                width: 100%;
-                border-collapse: collapse;
-            }}
-            .table th, .table td {{
-                border: 1px solid #ddd;
-                padding: 8px;
-            }}
-            .table th {{
-                background-color: #f2f2f2;
-                text-align: left;
-            }}
-        </style>
-    </head>
-    <body>
-        {html_text}
-        <h2>Plots</h2>
+# **Function to update button color using JavaScript**
+def change_button_color(tabs, inactive_color, active_color):
+    js_code = f"""
+        <script>
+            var elements = window.parent.document.querySelectorAll('button');
+            elements.forEach(btn => {{
+                if ({' || '.join([f"btn.innerText.includes('{tab}')" for tab in tabs])}) {{
+                    btn.style.background = "{inactive_color}";
+                    btn.style.color = "black";
+                    btn.style.borderRadius = "10px 10px 0px 0px"; /* Rounded top, flat bottom */
+                    btn.style.borderBottom = "none"; /* Remove bottom border */
+                    btn.style.width = "100%"; /* Make button full width */
+                    btn.style.margin = "0px"; /* Remove extra margin */
+                }}
+                if (btn.innerText.includes("{st.session_state['active_tab']}")) {{
+                    btn.style.background = "{active_color}";
+                    btn.style.color = "white";
+                    btn.style.borderRadius = "10px 10px 0px 0px"; /* Keep active tab design */
+                    btn.style.borderBottom = "none";
+                    btn.style.width = "100%"; /* Make button full width */
+                    btn.style.margin = "0px"; /* Remove extra margin */
+                }}
+            }});
+        </script>
     """
+    components.html(js_code, height=0, width=0)
 
-    # Füge Plots als SVG ein
-    for i, plot_svg in enumerate(plot_svgs):
-        full_html += f"""
-        <h3>Plot {i + 1}</h3>
-        <div>{plot_svg}</div>
-        """
 
-    # Füge Tabelle ein
-    #full_html += f"""
-    #    <h2>Tabelle</h2>
-    #    {table_html}
-    #</body>
-    #</html>
-    #"""
-
-    # HTML in PDF umwandeln
-    pdf = None #HTML(string=full_html).write_pdf()
-    return BytesIO(pdf)
-
-app_description = """
-    <h1>Information</h1>
-    <p>
-        This platform provides statistics and visualization to assess the uncertainty of genotype sample projections in a Principal Component Analysis (PCA).<br>
-        Derived from the SmartPCA algorithm, the placement variability of ancient genomic data points in the feature space is quantified and displayed based on modern West-Eurasian samples.
-    </p>
-
-    <h2>Data</h2>
-    <p>
-        To assess the uncertainty in your PCA placement, please upload the following data:
-    </p>
-    <ul>
-        <li><b>GENO-Datei</b>: The genotype data in EIGENSTRAT format (other formats will be supported soon)</li>
-        <li><b>IND-Datei</b>: Information on the individuals (e.g. name, population).</li>
-        <li><b>SNP-Datei</b>: The SNP names and positions.</li>
-    </ul>
-    """
-background_files = """
-    <style>
-    .file-upload-section {
-        background-color: lightsalmon; 
-        padding: 10px;
-        border-radius: 10px;
-        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
-    }
-    </style>
-    """
-
-top_margin = """
-    <style>
-    .title {
-        position: relative;
-        top: -50px; /* Verschiebt den Titel nach oben */
-        text-align: center; /* Zentriere den Titel */
-        font-size: 48px; /* Schriftgröße */
-        color: darkblue; /* Standardfarbe des Titels */
-    }
-    .highlight {
-        color: #0070C0; /* Farbe für das Wort "PCA" */
-    }
-    .ellipses {
-        position: relative;
-        top: -60px; /* Verschiebe die Ellipsen-Grafik nach oben */
-        text-align: center; /* Zentriere die Grafik */
-    }
-    .description {
-        position: relative;
-        top: -58px;
-        text-align: center;
-        font-size:32px !important;
-        color: black;
-    }
-    </style>
-    """
-alert = """
-    <style>
-    .stAlert {
-        background-color: lightsalmon !important;
-        border-radius: 10px; /* Optionale abgerundete Ecken */
-        padding: 10px; /* Innenabstand */
-    }
-    </style>
-    """
 title =  """
     <h1 class="title">
         Welcome to TrustPCA!
@@ -515,7 +434,7 @@ modern_df['Group'] = groups['Group']
 indices = pd.read_csv(path_to_database+'SNPs_mwe.csv', header=0)
 genomean = pd.read_csv(path_to_database+'genomean.csv', header=0)
 genomean = genomean['x'].values
-V = np.load(path_to_database+'eigenvectors.npy')
+V_path = path_to_database+'eigenvectors.npy'
 Lambda = np.load(path_to_database+'eigenvalues.npy')
 magical_factors = np.load(path_to_database+'factors.npy')
 
@@ -553,7 +472,7 @@ st.markdown('''
 - **Input format:** EIGENSTRAT format.
 - **Output:** 
   - PC scatter plot (PC2 vs. PC1) based on the modern West Eurasian map. 
-  - SmartPCA projections of the given (ancient) individuals together with uncertainty predictions of these projections. The uncertainties are visualized as confidence ellipses.')
+  - SmartPCA projections of the given (ancient) individuals together with uncertainty predictions of these projections. The uncertainties are visualized as confidence ellipses.
 ''', unsafe_allow_html=True)
 
 st.divider()
@@ -574,7 +493,7 @@ if "taus" not in st.session_state:
 if "ellipses" not in st.session_state:
     st.session_state["ellipses"] = None
 if "active_tab" not in st.session_state:
-    st.session_state["active_tab"] = "Genotype Data" 
+    st.session_state["active_tab"] = "Input Data" 
 if "selected_percentiles" not in st.session_state:
     st.session_state["selected_percentiles"] = percentiles
 if "missing_plot" not in st.session_state:
@@ -599,182 +518,149 @@ if "color_lookup" not in st.session_state:
 #st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
 #st.markdown('</div>', unsafe_allow_html=True)
 
-
-# file uploads
-st.subheader("Data Upload")
-with st.expander("Upload your data", icon=":material/upload:"):
-    st.markdown("Upload **GENO** and **IND** files as defined by the EIGENSTRAT format.")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        geno_file = st.file_uploader("Upload GENO file", type=["csv", "txt", "geno"])
-
-    with col2:
-        ind_file = st.file_uploader("Upload IND file", type=["csv", "txt", "ind"])
+tabs = ["Input Data", "Uncertainty Analysis", "Information"]
+inactive_color = "#cceaff"  
+active_color = "#0070C0"  
 
 
-col1, col2, col3 = st.columns(
-            [0.1, 0.15, 0.8],
-            vertical_alignment="center",
-            gap="small"
-            )   
-with col1:            
-    if st.button("Use Example Data"):
-        st.session_state["example_data"] = True
+columns = st.columns(len(tabs), gap="small")
+for col, tab_name in zip(columns, tabs):
+    with col:
+        if st.button(tab_name, key=f"button_{tab_name}"):
+            st.session_state["active_tab"] = tab_name
+            #change_button_color(tabs, inactive_color, active_color)
+            #st.rerun() 
 
-status_banner = st.empty()
-tabs = ["Information"]
+with st.container(height=0):
+    change_button_color(tabs, inactive_color, active_color)
 
-if st.session_state["example_data"]:
-    with col2:
-        st.info("Using example data...")
-    ancient_example = pd.read_csv(path_to_database+"example_data_tool.csv", header=0)
-    with open(path_to_database+"ellipses_example_data.pkl", "rb") as f:
-        ellipses = pickle.load(f)
-        st.session_state["ellipses"] = ellipses
-    nines = ancient_example[["ID","coverage"]]
-    nines["coverage"]=nines["coverage"]/594924 * 100
-    nines_dict = nines.set_index("ID")["coverage"].to_dict()
-    st.session_state["nines"]=nines_dict
-    st.session_state["missing_plot"] = plot_missing(st.session_state["nines"])
-    st.session_state["ind"] = ancient_example[["ID", "Group_ID"]]
-    st.session_state["taus"] = np.array(ancient_example[["x", "y"]])
-    
-    num_inds = len(ancient_example["ID"])
-    scaled_palette = [base_palette[i % len(base_palette)] for i in range(num_inds)]
-    color_lookup = dict(zip(ancient_example["ID"], scaled_palette))
-    st.session_state["color_lookup"] = color_lookup
-    fig = base_plot(modern, st.session_state["taus"], st.session_state["ind"], color_lookup)
-    color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"])
-    st.session_state["base_plot"] = fig
-    st.session_state["color_plot"] = color_plot
-    st.session_state["preprocessing"] = True
-       
+if st.session_state["active_tab"] == "Input Data":
+    # file uploads
+    with st.container(border=True):
+        st.markdown("**Data Upload**")
+        with st.expander("Upload your data", icon=":material/upload:"):
+            st.markdown("Upload **GENO** and **IND** files as defined by the EIGENSTRAT format.")
 
-if geno_file and ind_file:
-    ind_data = parse_ind(ind_file)
-    if len(st.session_state["checkbox_states"]) != len(ind_data):
-        st.session_state["checkbox_states"] = [False] * len(ind_data)
-    st.subheader("Select Individuals for Analysis")
-    
-    st.session_state["select_all"] = st.checkbox("Select All Individuals", value=st.session_state["select_all"])
-    if st.session_state["select_all"]:
-        st.session_state["checkbox_states"] = [True] * len(ind_data)
+            col1, col2 = st.columns(2)
 
-    num_columns = 3
-    columns = st.columns(num_columns)
+            with col1:
+                geno_file = st.file_uploader("Upload GENO file", type=["csv", "txt", "geno"])
 
-    for i, row in ind_data.iterrows():
-        col_index = i % num_columns
-        with columns[col_index]:
-            entry = f"{row['ID']} - {row['Gender']} - {row['Population']}"
-            st.session_state["checkbox_states"][i] = st.checkbox(
-                entry, value=st.session_state["checkbox_states"][i], key=f"checkbox_{i}"
-            )
+            with col2:
+                ind_file = st.file_uploader("Upload IND file", type=["csv", "txt", "ind"])
+            
+            if geno_file and ind_file:
+                ind_data = parse_ind(ind_file)
+                if len(st.session_state["checkbox_states"]) != len(ind_data):
+                    st.session_state["checkbox_states"] = [False] * len(ind_data)
+                st.subheader("Select Individuals for Analysis")
+                
+                st.session_state["select_all"] = st.checkbox("Select All Individuals", value=st.session_state["select_all"])
+                if st.session_state["select_all"]:
+                    st.session_state["checkbox_states"] = [True] * len(ind_data)
 
-    if st.button("Submit Selection"):
-        selected_indices = [i for i, selected in enumerate(st.session_state["checkbox_states"]) if selected]
-        if selected_indices:
-            st.session_state["sample_submitted"] = True
-            if not st.session_state.select_all:
-                with tempfile.TemporaryDirectory(dir=".") as temp_dir:
-                    output_geno_path = f"{temp_dir}/subset_geno.geno"
-                    output_ind_path = f"{temp_dir}/subset_ind.ind"
-                    create_subset(geno_file, ind_file, selected_indices, output_geno_path, output_ind_path)
-                    st.session_state["geno"] = parse_geno(output_geno_path)
-                    st.session_state["ind"] = parse_ind(output_ind_path)
-            else:
-                st.session_state["geno"] = parse_geno(geno_file)
-                st.session_state["ind"] = ind_data
-            st.session_state["parsed"]=True
+                num_columns = 3
+                columns = st.columns(num_columns)
 
+                for i, row in ind_data.iterrows():
+                    col_index = i % num_columns
+                    with columns[col_index]:
+                        entry = f"{row['ID']} - {row['Gender']} - {row['Population']}"
+                        st.session_state["checkbox_states"][i] = st.checkbox(
+                            entry, value=st.session_state["checkbox_states"][i], key=f"checkbox_{i}"
+                        )
 
-if st.session_state["parsed"]:
-    print("sample submitted")
-    if not st.session_state["preprocessing"]:
-        status_banner.info("Filtering genos...")
-        nonv_geno = get_nonvariant_geno(st.session_state["geno"], indices)
-        st.session_state["geno"] = nonv_geno
-        status_banner.info("Calculating missing statistics...")
-        nines, total_positions = missing_statistics(st.session_state["geno"], st.session_state["ind"])
-        st.session_state["nines"] = nines
-        st.session_state["missing_plot"] = plot_missing(st.session_state["nines"])
-        is_not_nan = ~np.isnan(nonv_geno)
-        status_banner.info("Projecting samples...")
-        taus = pmp_drift_parallel(nonv_geno, V, genomean, is_not_nan, n_jobs=-1) #pmp_drift(nonv_geno, V, genomean, is_not_nan)
-        st.session_state["taus"] = taus
-        status_banner.info("Generating PCA plot...")
-        num_inds=st.session_state["ind"].shape[0]
-        scaled_palette = [base_palette[i % len(base_palette)] for i in range(num_inds)]
-        color_lookup = dict(zip(st.session_state["ind"]["ID"], scaled_palette))
-        st.session_state["color_lookup"] = color_lookup
-        fig = base_plot(modern, taus, st.session_state["ind"], color_lookup)
-        st.session_state["base_plot"] = fig
-        color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"])
-        
-        st.session_state["color_plot"] = color_plot
+                if st.button("Submit Selection"):
+                    if st.session_state["parsed"]:
+                        st.session_state["parsed"]=False
+                        st.session_state["preprocessing"]=False
+                    selected_indices = [i for i, selected in enumerate(st.session_state["checkbox_states"]) if selected]
+                    if selected_indices:
+                        st.session_state["sample_submitted"] = True
+                        if not st.session_state.select_all:
+                            with tempfile.TemporaryDirectory(dir=".") as temp_dir:
+                                output_geno_path = f"{temp_dir}/subset_geno.geno"
+                                output_ind_path = f"{temp_dir}/subset_ind.ind"
+                                create_subset(geno_file, ind_file, selected_indices, output_geno_path, output_ind_path)
+                                st.session_state["geno"] = parse_geno(output_geno_path)
+                                st.session_state["ind"] = parse_ind(output_ind_path)
+                        else:
+                            st.session_state["geno"] = parse_geno(geno_file)
+                            st.session_state["ind"] = ind_data
+                        st.session_state["parsed"]=True
+                    status_banner = st.empty()
+            if st.session_state["parsed"]:
+                print("sample submitted")
+                if not st.session_state["preprocessing"]:
+                    status_banner.info("Filtering genos...")
+                    nonv_geno = get_nonvariant_geno(st.session_state["geno"], indices)
+                    st.session_state["geno"] = nonv_geno
+                    status_banner.info("Calculating missing statistics...")
+                    nines, total_positions = missing_statistics(st.session_state["geno"], st.session_state["ind"])
+                    st.session_state["nines"] = nines
+                    st.session_state["missing_plot"] = plot_missing(st.session_state["nines"])
+                    is_not_nan = ~np.isnan(nonv_geno)
+                    status_banner.info("Projecting samples...")
+                    V = np.load(V_path)
+                    taus = pmp_drift_parallel(nonv_geno, V[:, 0:2], genomean, is_not_nan, n_jobs=-1) #pmp_drift(nonv_geno, V, genomean, is_not_nan)
+                    st.session_state["taus"] = taus
+                    status_banner.info("Generating PCA plot...")
+                    num_inds=st.session_state["ind"].shape[0]
+                    scaled_palette = [base_palette[i % len(base_palette)] for i in range(num_inds)]
+                    color_lookup = dict(zip(st.session_state["ind"]["ID"], scaled_palette))
+                    st.session_state["color_lookup"] = color_lookup
+                    fig = base_plot(modern, taus, st.session_state["ind"], color_lookup)
+                    st.session_state["base_plot"] = fig
+                    color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"])
+                    
+                    st.session_state["color_plot"] = color_plot
 
-        ellipses = {} #ellipses can not be a df bc arrow compatibility or sth
-        status_banner.info("Calculating uncertainties...") 
+                    ellipses = {} #ellipses can not be a df bc arrow compatibility or sth
+                    status_banner.info("Calculating uncertainties...") 
 
-        progress_bar = st.progress(0)  # Start bei 0%
-        total_samples = len(nonv_geno)
-        var_tau_r = np.diag(Lambda[2:] * magical_factors[2:])
-        for index, geno in enumerate(nonv_geno):
-            curr_ind = st.session_state["ind"].iloc[index]
-            progress = (index + 1) / total_samples
-            progress_bar.progress(progress)
+                    progress_bar = st.progress(0)  # Start bei 0%
+                    total_samples = len(nonv_geno)
+                    var_tau_r = np.diag(Lambda[2:] * magical_factors[2:])
+                    for index, geno in enumerate(nonv_geno):
+                        curr_ind = st.session_state["ind"].iloc[index]
+                        progress = (index + 1) / total_samples
+                        progress_bar.progress(progress)
 
-            ellipses[curr_ind["ID"]] = {}
-        
-            is_not_nani = is_not_nan[index]
-            # Predict variance of discrepency
-            V_obs = V[is_not_nani]
-            var_discr = var_discrepency(V_obs=V_obs, var_tau_r=var_tau_r)
-            #ellipses
-            for percentile in percentiles:
-                x, y = get_ellipse(mean=taus[index], Sigma=var_discr, confidence_level=percentile)
-                ellipses[curr_ind["ID"]][percentile] = {"x": x, "y": y}
+                        ellipses[curr_ind["ID"]] = {}
+                    
+                        is_not_nani = is_not_nan[index]
+                        # Predict variance of discrepency
+                        V_obs = V[is_not_nani]
+                        var_discr = var_discrepency(V_obs=V_obs, var_tau_r=var_tau_r)
+                        #ellipses
+                        for percentile in percentiles:
+                            x, y = get_ellipse(mean=taus[index], Sigma=var_discr, confidence_level=percentile)
+                            ellipses[curr_ind["ID"]][percentile] = {"x": x, "y": y}
 
-        progress_bar.empty()
-        status_banner.empty()
-        st.session_state["ellipses"] = ellipses
-        status_banner.empty()
-        st.session_state["preprocessing"] = True
+                    progress_bar.empty()
+                    status_banner.empty()
+                    st.session_state["ellipses"] = ellipses
+                    status_banner.empty()
+                    st.session_state["preprocessing"] = True
+                    V = None
+                    st.rerun()
+         
+        if st.button("Use Example Data"):
+            if st.session_state["preprocessing"]:
+                st.session_state["preprocessing"] = False
+            st.session_state["example_data"] = True
+            V = None
 
-st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-
-if st.session_state["preprocessing"]:
-    tabs = ["Genotype Data", "Uncertainty Analysis", "Information"]
-    st.markdown(
-    buttons,
-    unsafe_allow_html=True,
-    )
-
-    columns = st.columns(len(tabs))
-
-    # TODO: design of buttons 
-    for col, tab_name in zip(columns, tabs):
-        with col:
-            if st.button(tab_name, key=f"button_{tab_name}"):
-                set_active_tab(tab_name)
-
-
-    # Tab 1
-    if st.session_state["active_tab"] == "Genotype Data":
+            
+    if st.session_state["preprocessing"]:
         #st.success("GENO and IND data uploaded successfully!")
-        if st.session_state["sample_submitted"]:
-            with st.expander("Data Preview", expanded=False):
+        with st.expander("Show data characteristics", icon=":material/table_eye:"):
+            if not st.session_state["example_data"]:
                 st.subheader("Data preview")
                 st.write("Geno (First 50x50)")
                 st.write(st.session_state["geno"][0:50, 0:50])
                 st.write("Ind (First Rows)")
                 st.write(st.session_state["ind"].head())
-        
-        with st.expander("Show data characteristics", icon=":material/table_eye:"):
             col1, col2 = st.columns(
             [0.3, 0.7],
             vertical_alignment="center",
@@ -790,102 +676,149 @@ if st.session_state["preprocessing"]:
             with col2:
                 if st.session_state["missing_plot"]:
                     st.plotly_chart(st.session_state["missing_plot"], theme=None)
+        with st.container(border=True):
+            st.subheader("SmartPCA Plot")
+            
+            if "current_plot" not in st.session_state:
+                st.session_state["current_plot"] = "base"  # Standardmäßig den Base Plot anzeigen
 
-        st.subheader("Sample Placement Based on SmartPCA")
-        
-        if "current_plot" not in st.session_state:
-            st.session_state["current_plot"] = "base"  # Standardmäßig den Base Plot anzeigen
+            # Button zum Wechseln des Plots
+            if st.button("Color Moderns by Group"):
+                # Wechsel zwischen "base" und "color"
+                if st.session_state["current_plot"] == "base":
+                    st.session_state["current_plot"] = "color"
+                else:
+                    st.session_state["current_plot"] = "base"
 
-        # Button zum Wechseln des Plots
-        if st.button("Change Coloring"):
-            # Wechsel zwischen "base" und "color"
+            # Plot basierend auf dem Zustand anzeigen
             if st.session_state["current_plot"] == "base":
-                st.session_state["current_plot"] = "color"
+                st.plotly_chart(st.session_state["base_plot"], theme=None)
+            elif st.session_state["current_plot"] == "color":
+                st.plotly_chart(st.session_state["color_plot"], theme=None)
+    else:
+        if st.session_state["example_data"]:
+            ancient_example = pd.read_csv(path_to_database+"example_data_tool.csv", header=0)
+            with open(path_to_database+"ellipses_example_data.pkl", "rb") as f:
+                ellipses = pickle.load(f)
+                st.session_state["ellipses"] = ellipses
+            nines = ancient_example[["ID","coverage"]]
+            nines["coverage"]=nines["coverage"]/594924 * 100
+            nines_dict = nines.set_index("ID")["coverage"].to_dict()
+            st.session_state["nines"]=nines_dict
+            st.session_state["missing_plot"] = plot_missing(st.session_state["nines"])
+            st.session_state["ind"] = ancient_example[["ID", "Group_ID"]]
+            st.session_state["taus"] = np.array(ancient_example[["x", "y"]])
+            
+            num_inds = len(ancient_example["ID"])
+            scaled_palette = [base_palette[i % len(base_palette)] for i in range(num_inds)]
+            color_lookup = dict(zip(ancient_example["ID"], scaled_palette))
+            st.session_state["color_lookup"] = color_lookup
+            fig = base_plot(modern, st.session_state["taus"], st.session_state["ind"], color_lookup)
+            color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"])
+            st.session_state["base_plot"] = fig
+            st.session_state["color_plot"] = color_plot
+            st.session_state["preprocessing"] = True
+            st.rerun()
+
+# Tab 2
+elif st.session_state["active_tab"] == "Uncertainty Analysis":
+    if st.session_state["preprocessing"]:
+        with st.container(border=True):
+            st.subheader("SmartPCA Plot with Uncertainties")
+            col1, col2 = st.columns([0.4, 0.6])
+            with col1:
+                # change design muslitselect
+                selected = st.multiselect(
+                label="Select Percentiles",
+                options=[0.99, 0.9, 0.75, 0.5],
+                default=st.session_state["selected_percentiles"],
+                key="percentile_selector",
+                on_change=update_percentiles
+                )      
+            if st.button("Color Moderns by Group"):
+                st.session_state["current_plot"] = "base" if st.session_state["current_plot"] == "color" else "color"
+
+            if st.session_state["current_plot"] == "base":
+                fig = copy.deepcopy(st.session_state["base_plot"])
             else:
-                st.session_state["current_plot"] = "base"
-
-        # Plot basierend auf dem Zustand anzeigen
-        if st.session_state["current_plot"] == "base":
-            st.plotly_chart(st.session_state["base_plot"], theme=None)
-        elif st.session_state["current_plot"] == "color":
-            st.plotly_chart(st.session_state["color_plot"], theme=None)
-        
-
-    # Tab 2
-    elif st.session_state["active_tab"] == "Uncertainty Analysis":
-        st.header("Uncertainty Analysis")
-        # change design muslitselect
-        selected = st.multiselect(
-        label="Select Percentiles",
-        options=[0.99, 0.9, 0.75, 0.5],
-        default=st.session_state["selected_percentiles"],
-        key="percentile_selector",
-        on_change=update_percentiles
-        )      
-        if st.button("Change Coloring"):
-            st.session_state["current_plot"] = "base" if st.session_state["current_plot"] == "color" else "color"
-
-        if st.session_state["current_plot"] == "base":
-            fig = copy.deepcopy(st.session_state["base_plot"])
-        else:
-            fig = copy.deepcopy(st.session_state["color_plot"])
+                fig = copy.deepcopy(st.session_state["color_plot"])
 
 
-        alpha = 0.2
-        for index, ind_i in st.session_state["ind"].iterrows():
-            color_rgb = st.session_state["color_lookup"][ind_i["ID"]][4:-1].split(",")  # Entferne 'rgb(' und ')'
-            fillcolor = f'rgba({color_rgb[0]}, {color_rgb[1]}, {color_rgb[2]}, {alpha})'
-            for percentile in st.session_state["selected_percentiles"]:
-                coords = st.session_state["ellipses"][ind_i["ID"]][percentile]
-                fig.add_trace(go.Scatter(
-                    x=np.append(coords["x"], coords["x"][0]),  # Ellipse schließen
-                    y=np.append(coords["y"], coords["y"][0]),
-                    mode="none",
-                    fill="toself",
-                    fillcolor=fillcolor if st.session_state["current_plot"] == "base" else f'rgba(0, 0, 0, {alpha})',
-                    legendgroup=ind_i["ID"], 
-                    showlegend=False,
-                    name=f"{percentile}"
-                ))
-        
+            alpha = 0.2
+            for index, ind_i in st.session_state["ind"].iterrows():
+                color_rgb = st.session_state["color_lookup"][ind_i["ID"]][4:-1].split(",")  # Entferne 'rgb(' und ')'
+                fillcolor = f'rgba({color_rgb[0]}, {color_rgb[1]}, {color_rgb[2]}, {alpha})'
+                for percentile in st.session_state["selected_percentiles"]:
+                    coords = st.session_state["ellipses"][ind_i["ID"]][percentile]
+                    fig.add_trace(go.Scatter(
+                        x=np.append(coords["x"], coords["x"][0]),  # Ellipse schließen
+                        y=np.append(coords["y"], coords["y"][0]),
+                        mode="none",
+                        fill="toself",
+                        fillcolor=fillcolor if st.session_state["current_plot"] == "base" else f'rgba(0, 0, 0, {alpha})',
+                        legendgroup=ind_i["ID"], 
+                        showlegend=False,
+                        name=f"{percentile}"
+                    ))
+            
 
-        #sadly, the tau traces have to be added again, bc they are overwritten by the ellipses and should go to the foreground (no better way)
-        #if st.session_state["current_plot"] == "base":
-        #    for trace in st.session_state["base_plot"].data:
-        #        if trace.legendgroup in st.session_state["ind"]["ID"].values:
-        #            fig.add_trace(trace)
-        #else:
-        #    for trace in st.session_state["color_plot"].data:
-        #        if trace.legendgroup in st.session_state["ind"]["ID"].values:
-        #            fig.add_trace(trace)
-    
-        st.plotly_chart(fig, theme=None)
-        st.session_state["ellipse_plot"] = fig
+            #sadly, the tau traces have to be added again, bc they are overwritten by the ellipses and should go to the foreground (no better way)
+            #if st.session_state["current_plot"] == "base":
+            #    for trace in st.session_state["base_plot"].data:
+            #        if trace.legendgroup in st.session_state["ind"]["ID"].values:
+            #            fig.add_trace(trace)
+            #else:
+            #    for trace in st.session_state["color_plot"].data:
+            #        if trace.legendgroup in st.session_state["ind"]["ID"].values:
+            #            fig.add_trace(trace)
 
-        pdf_buffer = save_fig_as_pdf(st.session_state["ellipse_plot"])
-        st.download_button(
-            label="Download Figure as PDF",
-            data=pdf_buffer,
-            file_name="TRUST_PCA_download.pdf",
-            mime="application/pdf"
-        )
-        
-        st.header("PDF-Report")
-        st.markdown("To download the Summary of Missing statistics and Uncertainty Plots, please click the Download-Button")
-        pdf_buffer = create_pdf_report(
-            html_text=app_description,
-            plotly_figures=[st.session_state["missing_plot"], st.session_state["ellipse_plot"]]
-            #table_html=table_html
-        )
-        st.download_button(
-            label="Download PDF",
-            data=pdf_buffer,
-            file_name="Uncertainty_analysis_report.pdf",
-            mime="application/pdf"
-        )
+            st.plotly_chart(fig, theme=None)
+            st.session_state["ellipse_plot"] = fig
 
+            pdf_buffer = save_fig_as_pdf(st.session_state["ellipse_plot"])
+            st.download_button(
+                label="Download Figure as PDF",
+                data=pdf_buffer,
+                file_name="TRUST_PCA_download.pdf",
+                mime="application/pdf"
+            )
+    else:
+        st.markdown("No data available. Please upload your file or choose example data from the Input Data tab.")
 
-    # Tab 3
-    elif st.session_state["active_tab"] == "Information":
-        st.markdown(app_description, unsafe_allow_html=True)
+# Tab 3
+elif st.session_state["active_tab"] == "Information":
+    st.markdown('''
+    TrustPCA is an advanced tool for **Principal Component Analysis (PCA) of ancient human genomic data**,
+    providing robust **estimation of placement variability**. <br>
+    Using the PC space derived from modern West Eurasian genotype data, TrustPCA enables users to project ancient samples similarly to SmartPCA. <br>
+    It predicts projection uncertainties based on missing loci in the provided samples, visualizing these as uncertainty ellipses on PC plots, representing different confidence levels for sample placements.
+    All outputs, including statistical summaries and visualizations, can be exported as PDFs for easy integration into research workflows.
+    ''')
+
+    st.markdown("""
+    ### Supported Data Formats
+    TRUST PCA works with **EIGENSTRAT-formatted files**, a widely used format for genomic data analysis.
+    The following files are required:
+    - **GENO file** (`*.geno`): Genotype matrix with SNP data in a compact format.
+    - **IND file** (`*.ind`): Information about individuals (ID, population, gender).
+    - **SNP file** (`*.snp`): SNP names and genomic positions.
+    More details can be found in the official documentation:
+    - [EIGENSTRAT Format](https://reich.hms.harvard.edu/software/InputFileFormats)
+    - [SmartPCA Documentation](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/chrchang/eigensoft/blob/master/POPGEN)
+    ---
+    ### How It Works
+    - Upload your **EIGENSTRAT files** or use our example data.
+    - Select the **individuals** to include in the PCA.
+    - The tool **projects your ancient samples** onto the reference PCA.
+    - **Uncertainty ellipses** visualize confidence intervals based on missing SNP rates.
+    - Download your results as a **PDF report**.
+    ---
+    ### Citation & References
+    If you use TRUST PCA in your research, please cite:
+    **Author Names**, "A Probabilistic Approach to Visualize the Effect of Missing Data on PCA in Ancient Human Genomics", *Journal XYZ*, 2025.
+    DOI: [10.xxxx/xxxxxx](https://doi.org/xxxx/xxxx)
+    ### About This Tool
+    - **Developed by:** XYZ Research Group
+    """,
+        unsafe_allow_html=True)
 
