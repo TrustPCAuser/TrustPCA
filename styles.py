@@ -64,7 +64,7 @@ alert = """
     """
 title =  """
     <h1 class="title">
-        Welcome to TRUST<span class="highlight">PCA</span>!
+        Welcome to Trust<span class="highlight">PCA</span>!
     </h1>
     """
 

@@ -4,6 +4,7 @@ import streamlit as st
 import copy
 import pickle
 import tempfile
+from pathlib import Path
 
 import plotly.graph_objects as go
 from joblib import Parallel, delayed
@@ -93,27 +94,25 @@ def plot_missing(nines):
     fig.add_trace(go.Bar(
         x=sample_names,
         y=missing_percentage,
-        marker=dict(color='lightsalmon'),
-        name="Missing Data (%)",
+        marker=dict(color='grey'),
         hoverinfo="x+y",
     ))
-    fig.add_trace(go.Scatter(
-        x=sample_names,
-        y=[100] * len(sample_names),
-        mode="lines",
-        line=dict(color="indianred", dash="dash"),
-        name="100% (Total Positions)",
-        hoverinfo="skip",
-    ))
+    fig.add_hline(y=100,
+        line_color="grey",
+        line_dash="dash",
+        line_width=2
+    )
     fig.update_layout(
-        title="Missing Data per Sample",
+        #title="Missing Data per Sample",
         xaxis_title="Samples",
-        yaxis_title="Missing Data (%)",
+        yaxis_title="Missing Genotypes [%]",
         xaxis=dict(tickangle=45),
         template="simple_white",
-        height=500,
-        width=1200,
-        showlegend=True,
+        #height=400,
+        #width=900,
+        #showlegend=True,
+        plot_bgcolor='white',  
+        paper_bgcolor='white',
     )
     return fig
 
@@ -165,16 +164,6 @@ def color_plot(modern_df, taus, inds):
             )
         )
 
-    # Layout anpassen
-    fig.update_layout(
-        width=488,
-        height=int(0.75 * 488),
-        title="Modern Samples",
-        xaxis_title="PC1",
-        yaxis_title="PC2",
-        template="simple_white",
-        legend=dict(title="Group")
-    )
 
     for t, tau in enumerate(taus): 
         name = inds.iloc[t].values[0]
@@ -188,21 +177,19 @@ def color_plot(modern_df, taus, inds):
             name=name,
             text=sample_text,
             textposition="top center",
-            legendgroup=name,
+            #legendgroup=name,
         ))
 
     fig.update_layout(
         width=1300,
-        height=1050,
-        xaxis=dict(
-        showgrid=False,
-        zeroline=False
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False
-        ),
-        plot_bgcolor='white',  
+        height=1100,
+        title="Modern Samples",
+        xaxis_title="PC1",
+        yaxis_title="PC2",
+        template="simple_white",
+        font_size=14,
+        font_color='black',
+        plot_bgcolor='white',
         paper_bgcolor='white',
         legend=dict(
             #title="Modern West Eurasians",
@@ -226,6 +213,24 @@ def color_plot(modern_df, taus, inds):
             ),
             margin=dict(l=80, r=80, t=0, b=20)
     )
+    fig.update_xaxes(
+        mirror=True,
+        ticks='outside',
+        showline=True,
+        linecolor='black',
+        tickfont_size=14,
+        tickcolor='black'
+        #tickwidth=5
+    )
+    fig.update_yaxes(
+        mirror=True,
+        ticks='outside',
+        showline=True,
+        linecolor='black',
+        tickfont_size=14,
+        #tickwidth=5,
+        tickcolor='black'
+    )
 
     return fig
 
@@ -236,28 +241,11 @@ def base_plot(modern, taus, inds, color_lookup):
     # Modern samples hinzufügen
     coords_mwe = modern[["PC1", "PC2"]]
 
-    fig.update_layout(
-        width=1300,
-        height=1050,
-        xaxis=dict(
-        showgrid=False,
-        zeroline=False
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False
-        ),
-        plot_bgcolor='white',  
-        paper_bgcolor='white',
-        xaxis_title="PC1",
-        yaxis_title="PC2"
-
-    )
     fig.add_trace(go.Scatter(
         x=coords_mwe["PC1"],
         y=coords_mwe["PC2"],
         mode='markers',
-        marker=dict(color='rgb(127, 127, 127)'),
+        marker=dict(color='rgba(220, 220, 220, 0.8)'),
         name='Modern Samples',
     ))
 
@@ -275,7 +263,35 @@ def base_plot(modern, taus, inds, color_lookup):
             textposition="top center",
             legendgroup=name
         ))
-
+    fig.update_layout(
+        width=1300,
+        height=700,
+        xaxis_title="PC1",
+        yaxis_title="PC2",
+        template='simple_white',
+        font_size=14,
+        font_color='black',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+    )
+    fig.update_xaxes(
+        mirror=True,
+        ticks='outside',
+        showline=True,
+        linecolor='black',
+        tickfont_size=14,
+        tickcolor='black'
+        #tickwidth=5
+    )
+    fig.update_yaxes(
+        mirror=True,
+        ticks='outside',
+        showline=True,
+        linecolor='black',
+        tickfont_size=14,
+        #tickwidth=5,
+        tickcolor='black'
+    )
     return fig
 
 def get_ellipse(mean, Sigma, confidence_level):
@@ -417,7 +433,7 @@ top_margin = """
         color: darkblue; /* Standardfarbe des Titels */
     }
     .highlight {
-        color: indianred; /* Farbe für das Wort "PCA" */
+        color: #0070C0; /* Farbe für das Wort "PCA" */
     }
     .ellipses {
         position: relative;
@@ -444,7 +460,7 @@ alert = """
     """
 title =  """
     <h1 class="title">
-        Welcome to TRUST<span class="highlight">PCA</span>!
+        Welcome to TrustPCA!
     </h1>
     """
 
@@ -459,13 +475,7 @@ ellipse_logo_old = """
     """
 
 ellipse_logo = """
-    <div class="ellipses">
-        <svg width="500" height="50" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="250" cy="25" rx="100" ry="5" fill="lightsalmon" opacity="0.7" />
-            <ellipse cx="250" cy="25" rx="200" ry="8" fill="lightsalmon" opacity="0.4" />
-            <circle cx="250" cy="25" r="5" fill="tomato" />
-        </svg>
-    </div>
+    <img alt="TrustPCA" src="./logo/trustpca_logo.svg" height="90">
     """
 
 subtitle =  """
@@ -477,19 +487,8 @@ subtitle =  """
 buttons =  """
     <style>
     div.stButton>button {
-       font-size: 100px !important; /* Schriftgröße */
-        padding: 15px 30px !important; /* Abstand innerhalb der Buttons */
-        height: 60px !important; /* Mindesthöhe der Buttons */
-        width: 200px !important; /* Mindestbreite der Buttons */
-        margin: 10px !important; /* Abstand zwischen den Buttons */
-        border-radius: 8px !important; /* Abgerundete Ecken */
-        background-color: white !important; /* Hintergrundfarbe */
-        color: black !important; /* Schriftfarbe */
-        font-weight: bold !important; /* Fettere Schrift */
     }
     div.stButton>button:hover {
-        background-color: lightblue; /* Hover-Farbe */
-        color: black; /* Schriftfarbe beim Hover */
     }
     </style>
     """
@@ -497,24 +496,9 @@ buttons =  """
 buttons= """
 <style>
 div.stButton>button {
-    font-size: 20px !important; /* Einheitliche Schriftgröße */
-    padding: 20px !important; /* Einheitlicher Abstand innerhalb der Buttons */
-    border-radius: 8px !important; /* Abgerundete Ecken */
-    margin: 0 5px !important; /* Abstand zwischen den Tabs */
-    background-color: #e0e0e0 !important; /* Hintergrundfarbe */
-    color: black !important; /* Schriftfarbe */
-    font-weight: bold !important; /* Fettere Schrift */
-    border: 2px solid #ccc !important; /* Standard Rahmen */
-    width: 200px !important; /* Einheitliche Breite */
-    height: 70px !important; /* Einheitliche Höhe */
-    text-align: center !important; /* Zentrierung des Inhalts */
-    display: inline-block !important; /* Buttons in einer Reihe */
-    transition: all 0.2s ease-in-out; /* Sanfte Animation */
 }
 
 div.stButton>button:hover {
-    background-color: #d6d6d6 !important; /* Hover-Hintergrund */
-    color: black !important; /* Hover-Schriftfarbe */
 }
 </style>
 """
@@ -542,26 +526,37 @@ base_palette = px.colors.qualitative.Vivid
   
 
 # App Layout
-st.set_page_config(layout="wide",page_title="TRUST PCA")
+st.set_page_config(layout="wide",page_title="TrustPCA")
 
 #smaller top margin 
-st.markdown(top_margin, unsafe_allow_html=True)
+col1, col2 = st.columns([1,10], vertical_alignment="center")
+with col1:
+    st.image("logo/trustpca_logo.svg", width=150)
+with col2:
+    st.header('Welcome to TrustPCA')
+    st.subheader('A Tool for Reliability and Uncertainty in SmartPCA Projections')
 
-# title
-st.markdown(title, unsafe_allow_html=True
-)
+st.divider()
 
-#Logo
-st.markdown(
-    ellipse_logo,
-    unsafe_allow_html=True
-)
+#def read_markdown_file(markdown_file):
+##    return Path(markdown_file).read_text()
+#
+#intro_markdown = read_markdown_file("README.md")
+#st.markdown(intro_markdown, unsafe_allow_html=True)
 
-#subtitle
-st.markdown(
-   subtitle,
-    unsafe_allow_html=True
-)
+st.markdown('#### About')
+st.markdown("TrustPCA is a webtool that implements a probabilistic framework that predicts the uncertainty of SmartPCA projections due to missing genotype information and visualizes the uncertainties in a PC scatter plot.")
+st.markdown('#### Tool specification')
+st.info('In its current version, TrustPCA computes the PC space from modern West Eurasian populations. Therefore, the uncertainty predictions from TrustPCA are only meaningful for (ancient) human individuals from West Eurasia from the Mesolithic epoch or later.')
+st.markdown('''
+- **Input:** Genotype information of (ancient) human individuals based on the Human Origins array, covering approx. 600.000 sites.
+- **Input format:** EIGENSTRAT format.
+- **Output:** 
+  - PC scatter plot (PC2 vs. PC1) based on the modern West Eurasian map. 
+  - SmartPCA projections of the given (ancient) individuals together with uncertainty predictions of these projections. The uncertainties are visualized as confidence ellipses.')
+''', unsafe_allow_html=True)
+
+st.divider()
 
 # Initialize vars
 geno = None
@@ -601,34 +596,39 @@ if "parsed" not in st.session_state:
 if "color_lookup" not in st.session_state:
     st.session_state["color_lookup"] = False
 
-st.markdown(
-    background_files,
-    unsafe_allow_html=True
-)
+#st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
+#st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
 
 # file uploads
-st.header("Please upload your EIGENSTRAT files or use Example Data")
-st.write("Upload your GENO and IND files to begin processing or use example data to test the application.")
+st.subheader("Data Upload")
+with st.expander("Upload your data", icon=":material/upload:"):
+    st.markdown("Upload **GENO** and **IND** files as defined by the EIGENSTRAT format.")
 
-col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-with col1:
-    geno_file = st.file_uploader("Upload GENO file", type=["csv", "txt", "geno"])
+    with col1:
+        geno_file = st.file_uploader("Upload GENO file", type=["csv", "txt", "geno"])
 
-with col2:
-    ind_file = st.file_uploader("Upload IND file", type=["csv", "txt", "ind"])
+    with col2:
+        ind_file = st.file_uploader("Upload IND file", type=["csv", "txt", "ind"])
 
-if st.button("Use Example Data"):
-    st.session_state["example_data"] = True
+
+col1, col2, col3 = st.columns(
+            [0.1, 0.15, 0.8],
+            vertical_alignment="center",
+            gap="small"
+            )   
+with col1:            
+    if st.button("Use Example Data"):
+        st.session_state["example_data"] = True
 
 status_banner = st.empty()
 tabs = ["Information"]
 
 if st.session_state["example_data"]:
-    st.info("Using example data...")
+    with col2:
+        st.info("Using example data...")
     ancient_example = pd.read_csv(path_to_database+"example_data_tool.csv", header=0)
     with open(path_to_database+"ellipses_example_data.pkl", "rb") as f:
         ellipses = pickle.load(f)
@@ -743,15 +743,8 @@ if st.session_state["parsed"]:
         status_banner.empty()
         st.session_state["preprocessing"] = True
 
-st.markdown(
-    background_files,
-    unsafe_allow_html=True
-)
 st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
-
-if not st.session_state["preprocessing"]:
-    st.write(app_description, unsafe_allow_html=True,)
 
 
 if st.session_state["preprocessing"]:
@@ -772,7 +765,6 @@ if st.session_state["preprocessing"]:
 
     # Tab 1
     if st.session_state["active_tab"] == "Genotype Data":
-        st.header("Genotype Data")
         #st.success("GENO and IND data uploaded successfully!")
         if st.session_state["sample_submitted"]:
             with st.expander("Data Preview", expanded=False):
@@ -781,13 +773,24 @@ if st.session_state["preprocessing"]:
                 st.write(st.session_state["geno"][0:50, 0:50])
                 st.write("Ind (First Rows)")
                 st.write(st.session_state["ind"].head())
-        st.subheader("Missing Data Statistics")
-        st.write("Missing Data per Sample (in %)")
-        nines_df = pd.DataFrame.from_dict(st.session_state["nines"], orient="index", columns=["Missing SNP Percentage"])
-        nines_df["Missing SNP Percentage"] = nines_df["Missing SNP Percentage"].round(2).apply(lambda x: f"{x:.2f}")
-        st.table(nines_df)
-        if st.session_state["missing_plot"]:
-            st.plotly_chart(st.session_state["missing_plot"])
+        
+        with st.expander("Show data characteristics", icon=":material/table_eye:"):
+            col1, col2 = st.columns(
+            [0.3, 0.7],
+            vertical_alignment="center",
+            gap="medium"
+            )   
+            with col1:
+                nines_df = pd.DataFrame.from_dict(st.session_state["nines"], orient="index", columns=["Missing Genotypes [%]"])
+                nines_df["Missing Genotypes [%]"] = nines_df["Missing Genotypes [%]"].round(2).apply(lambda x: f"{x:.2f}")
+                st.dataframe(nines_df,
+                    use_container_width=True,
+
+                )
+            with col2:
+                if st.session_state["missing_plot"]:
+                    st.plotly_chart(st.session_state["missing_plot"], theme=None)
+
         st.subheader("Sample Placement Based on SmartPCA")
         
         if "current_plot" not in st.session_state:
@@ -803,9 +806,9 @@ if st.session_state["preprocessing"]:
 
         # Plot basierend auf dem Zustand anzeigen
         if st.session_state["current_plot"] == "base":
-            st.plotly_chart(st.session_state["base_plot"], use_container_width=True)
+            st.plotly_chart(st.session_state["base_plot"], theme=None)
         elif st.session_state["current_plot"] == "color":
-            st.plotly_chart(st.session_state["color_plot"], use_container_width=True)
+            st.plotly_chart(st.session_state["color_plot"], theme=None)
         
 
     # Tab 2
@@ -856,7 +859,7 @@ if st.session_state["preprocessing"]:
         #        if trace.legendgroup in st.session_state["ind"]["ID"].values:
         #            fig.add_trace(trace)
     
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, theme=None)
         st.session_state["ellipse_plot"] = fig
 
         pdf_buffer = save_fig_as_pdf(st.session_state["ellipse_plot"])
