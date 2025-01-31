@@ -518,7 +518,7 @@ if "color_lookup" not in st.session_state:
 #st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
 #st.markdown('</div>', unsafe_allow_html=True)
 
-tabs = ["Input Data", "Uncertainty Analysis", "Information"]
+tabs = ["Input Data", "Uncertainty Analysis", "More Infos on TrustPCA"]
 inactive_color = "#cceaff"  
 active_color = "#0070C0"  
 
@@ -786,15 +786,11 @@ elif st.session_state["active_tab"] == "Uncertainty Analysis":
         st.markdown("No data available. Please upload your file or choose example data from the Input Data tab.")
 
 # Tab 3
-elif st.session_state["active_tab"] == "Information":
-    st.markdown('''
-    TrustPCA is an advanced tool for **Principal Component Analysis (PCA) of ancient human genomic data**,
-    providing robust **estimation of placement variability**. <br>
-    Using the PC space derived from modern West Eurasian genotype data, TrustPCA enables users to project ancient samples similarly to SmartPCA. <br>
-    It predicts projection uncertainties based on missing loci in the provided samples, visualizing these as uncertainty ellipses on PC plots, representing different confidence levels for sample placements.
-    All outputs, including statistical summaries and visualizations, can be exported as PDFs for easy integration into research workflows.
-    ''')
-
+elif st.session_state["active_tab"] == "More Infos on TrustPCA":
+    st.markdown("TrustPCA is an advanced tool for **Principal Component Analysis (PCA) of ancient human genomic data**, providing robust **estimation of placement variability**.")
+    st.markdown("Using the PC space derived from modern West Eurasian genotype data, TrustPCA enables users to project ancient samples similarly to SmartPCA.")
+    st.markdown("It predicts projection uncertainties based on missing loci in the provided samples, visualizing these as uncertainty ellipses on PC plots, representing different confidence levels for sample placements. All outputs, including statistical summaries and visualizations, can be exported as PDFs for easy integration into research workflows.")
+    
     st.markdown("""
     ### Supported Data Formats
     TRUST PCA works with **EIGENSTRAT-formatted files**, a widely used format for genomic data analysis.
@@ -802,6 +798,8 @@ elif st.session_state["active_tab"] == "Information":
     - **GENO file** (`*.geno`): Genotype matrix with SNP data in a compact format.
     - **IND file** (`*.ind`): Information about individuals (ID, population, gender).
     - **SNP file** (`*.snp`): SNP names and genomic positions.
+    """)
+    st.markdown("""
     More details can be found in the official documentation:
     - [EIGENSTRAT Format](https://reich.hms.harvard.edu/software/InputFileFormats)
     - [SmartPCA Documentation](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/chrchang/eigensoft/blob/master/POPGEN)
