@@ -89,6 +89,7 @@ def plot_missing(nines):
     # creates bar plot of missing percentage per sample
     sample_names = list(nines.keys())
     missing_percentage = list(nines.values())
+    #missing_percentage = [100 - i for i in coverage_percentage]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -140,7 +141,9 @@ def save_fig_as_pdf(fig):
     pdf_buffer.seek(0) 
     return pdf_buffer
 
-def color_plot(modern_df, taus, inds):
+def color_plot(modern_df, taus, inds, Lambda):
+    pc1_label = f"PC1 ({Lambda[0]:.2f}%)"
+    pc2_label = f"PC2 ({Lambda[1]:.2f}%)"
     modern_df = modern_df.sort_values(by=['Group'])
     markers = ['circle', 'triangle-up', 'square', 'pentagon', 'star', 'diamond', 'diamond-wide', 'hexagon', 'x']
     palette = px.colors.qualitative.Vivid
@@ -166,13 +169,14 @@ def color_plot(modern_df, taus, inds):
                 ),
                 name=df_sub['Group'].unique()[0],  # Gruppenname als Legende,
                 meta=df_sub['Group'],
-                hovertemplate='%{meta}'
+                hovertemplate='%{meta}', 
+                legend="legend1"
             )
         )
 
 
     for t, tau in enumerate(taus): 
-        name = inds.iloc[t].values[0]
+        name = inds.iloc[t]["ID"]
         sample_text = f"{name}"
         # Sample hinzufügen
         fig.add_trace(go.Scatter(
@@ -183,15 +187,15 @@ def color_plot(modern_df, taus, inds):
             name=name,
             text=sample_text,
             textposition="top center",
-            #legendgroup=name,
+            legendgroup=name, 
+            legend="legend2"
         ))
 
     fig.update_layout(
         width=1300,
-        height=750,
-        title="Modern Samples",
-        xaxis_title="PC1",
-        yaxis_title="PC2",
+        height=900,
+        xaxis_title=pc1_label,
+        yaxis_title=pc2_label,
         template="simple_white",
         font_size=14,
         font_color='black',
@@ -200,7 +204,7 @@ def color_plot(modern_df, taus, inds):
         hoverlabel=dict(
             bgcolor="white",
         ),
-        legend=dict(
+        legend1=dict(
             #title="Modern West Eurasians",
             itemsizing='constant',  
             traceorder="normal",  
@@ -208,19 +212,31 @@ def color_plot(modern_df, taus, inds):
             x=0, #x=1.05,
             y=0, #y=0.5, 
             xanchor="left",
-            yanchor="bottom", 
+            yanchor="bottom",
             font=dict(
                 size=12,
                 family="Arial" 
             ),
-            itemwidth=50,
+            itemwidth=80,
             title_font=dict(
-                size=12
+                size=14
             ),
             bordercolor="white",  
-            borderwidth=0.2 
+            borderwidth=0.1
             ),
-            margin=dict(l=80, r=80, t=0, b=20)
+        legend2=dict(
+            title="Ancient samples <br> &nbsp;",
+            title_font=dict(
+                size=16
+            ),
+            font=dict(
+            size=14,
+            color="black"
+        ),
+            itemsizing='constant',  
+        ),
+
+        legend_bgcolor='rgba(0,0,0,0)',
     )
     fig.update_xaxes(
         mirror=True,
@@ -232,6 +248,7 @@ def color_plot(modern_df, taus, inds):
         #tickwidth=5
     )
     fig.update_yaxes(
+        range=[-500, 250],
         mirror=True,
         ticks='outside',
         showline=True,
@@ -244,9 +261,10 @@ def color_plot(modern_df, taus, inds):
     return fig
 
 
-def base_plot(modern, taus, inds, color_lookup):
+def base_plot(modern, taus, inds, color_lookup, Lambda):
     fig = go.Figure()
-
+    pc1_label = f"PC1 ({Lambda[0]:.2f}%)"
+    pc2_label = f"PC2 ({Lambda[1]:.2f}%)"
     # Modern samples hinzufügen
     coords_mwe = modern[["PC1", "PC2"]]
 
@@ -273,10 +291,10 @@ def base_plot(modern, taus, inds, color_lookup):
             legendgroup=name,
         ))
     fig.update_layout(
+        xaxis_title=pc1_label,
+        yaxis_title=pc2_label,
         width=1300,
         height=750,
-        xaxis_title="PC1",
-        yaxis_title="PC2",
         template='simple_white',
         font_size=14,
         font_color='black',
@@ -440,6 +458,7 @@ magical_factors = np.load(path_to_database+'factors.npy')
 
 ############################################################
 # set globally 
+explained_variance_ratio = Lambda / Lambda.sum() * 100
 percentiles = [0.99, 0.9, 0.75, 0.5]
 base_palette = px.colors.qualitative.Vivid
   
@@ -457,11 +476,6 @@ with col2:
 
 st.divider()
 
-#def read_markdown_file(markdown_file):
-##    return Path(markdown_file).read_text()
-#
-#intro_markdown = read_markdown_file("README.md")
-#st.markdown(intro_markdown, unsafe_allow_html=True)
 
 st.markdown('#### About')
 st.markdown("TrustPCA is a webtool that implements a probabilistic framework that predicts the uncertainty of SmartPCA projections due to missing genotype information and visualizes the uncertainties in a PC scatter plot.")
@@ -477,11 +491,13 @@ st.markdown('''
 
 st.divider()
 
-# Initialize vars
-geno = None
-ind = None
-
 # Initialize session state
+if "geno_file" not in st.session_state:
+    st.session_state["geno_file"] = None
+if "ind_file" not in st.session_state:
+    st.session_state["ind_file"] = None
+if "ind_file_parsed" not in st.session_state:
+    st.session_state["ind_file_parsed"] = None
 if "geno" not in st.session_state:
     st.session_state["geno"] = None
 if "ind" not in st.session_state:
@@ -515,8 +531,6 @@ if "parsed" not in st.session_state:
 if "color_lookup" not in st.session_state:
     st.session_state["color_lookup"] = False
 
-#st.markdown('<div class="file-upload-section">', unsafe_allow_html=True)
-#st.markdown('</div>', unsafe_allow_html=True)
 
 tabs = ["Input Data", "Uncertainty Analysis", "More Infos on TrustPCA"]
 inactive_color = "#cceaff"  
@@ -545,24 +559,30 @@ if st.session_state["active_tab"] == "Input Data":
 
             with col1:
                 geno_file = st.file_uploader("Upload GENO file", type=["csv", "txt", "geno"])
+                if geno_file:
+                    st.session_state["geno_file"] = geno_file
 
             with col2:
                 ind_file = st.file_uploader("Upload IND file", type=["csv", "txt", "ind"])
+                if ind_file:
+                    st.session_state["ind_file"] = ind_file
             
-            if geno_file and ind_file:
-                ind_data = parse_ind(ind_file)
-                if len(st.session_state["checkbox_states"]) != len(ind_data):
-                    st.session_state["checkbox_states"] = [False] * len(ind_data)
+            if st.session_state["geno_file"] and st.session_state["ind_file"]:
+                if st.session_state["ind_file_parsed"] is None:
+                    ind_data = parse_ind(st.session_state["ind_file"])
+                    st.session_state["ind_file_parsed"] = ind_data
+                if len(st.session_state["checkbox_states"]) != len(st.session_state["ind_file_parsed"]):
+                    st.session_state["checkbox_states"] = [False] * len(st.session_state["ind_file_parsed"])
                 st.subheader("Select Individuals for Analysis")
                 
                 st.session_state["select_all"] = st.checkbox("Select All Individuals", value=st.session_state["select_all"])
                 if st.session_state["select_all"]:
-                    st.session_state["checkbox_states"] = [True] * len(ind_data)
+                    st.session_state["checkbox_states"] = [True] * len(st.session_state["ind_file_parsed"])
 
                 num_columns = 3
                 columns = st.columns(num_columns)
 
-                for i, row in ind_data.iterrows():
+                for i, row in st.session_state["ind_file_parsed"].iterrows():
                     col_index = i % num_columns
                     with columns[col_index]:
                         entry = f"{row['ID']} - {row['Gender']} - {row['Population']}"
@@ -572,6 +592,7 @@ if st.session_state["active_tab"] == "Input Data":
 
                 if st.button("Submit Selection"):
                     if st.session_state["parsed"]:
+                        print("parsed")
                         st.session_state["parsed"]=False
                         st.session_state["preprocessing"]=False
                     selected_indices = [i for i, selected in enumerate(st.session_state["checkbox_states"]) if selected]
@@ -581,7 +602,7 @@ if st.session_state["active_tab"] == "Input Data":
                             with tempfile.TemporaryDirectory(dir=".") as temp_dir:
                                 output_geno_path = f"{temp_dir}/subset_geno.geno"
                                 output_ind_path = f"{temp_dir}/subset_ind.ind"
-                                create_subset(geno_file, ind_file, selected_indices, output_geno_path, output_ind_path)
+                                create_subset(st.session_state["geno_file"], st.session_state["ind_file"], selected_indices, output_geno_path, output_ind_path)
                                 st.session_state["geno"] = parse_geno(output_geno_path)
                                 st.session_state["ind"] = parse_ind(output_ind_path)
                         else:
@@ -589,6 +610,7 @@ if st.session_state["active_tab"] == "Input Data":
                             st.session_state["ind"] = ind_data
                         st.session_state["parsed"]=True
                     status_banner = st.empty()
+                    
             if st.session_state["parsed"]:
                 print("sample submitted")
                 if not st.session_state["preprocessing"]:
@@ -598,6 +620,7 @@ if st.session_state["active_tab"] == "Input Data":
                     status_banner.info("Calculating missing statistics...")
                     nines, total_positions = missing_statistics(st.session_state["geno"], st.session_state["ind"])
                     st.session_state["nines"] = nines
+                    print(nines)
                     st.session_state["missing_plot"] = plot_missing(st.session_state["nines"])
                     is_not_nan = ~np.isnan(nonv_geno)
                     status_banner.info("Projecting samples...")
@@ -609,9 +632,9 @@ if st.session_state["active_tab"] == "Input Data":
                     scaled_palette = [base_palette[i % len(base_palette)] for i in range(num_inds)]
                     color_lookup = dict(zip(st.session_state["ind"]["ID"], scaled_palette))
                     st.session_state["color_lookup"] = color_lookup
-                    fig = base_plot(modern, taus, st.session_state["ind"], color_lookup)
+                    fig = base_plot(modern, taus, st.session_state["ind"], color_lookup, explained_variance_ratio[0:2])
                     st.session_state["base_plot"] = fig
-                    color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"])
+                    color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"], explained_variance_ratio[0:2])
                     
                     st.session_state["color_plot"] = color_plot
 
@@ -649,6 +672,7 @@ if st.session_state["active_tab"] == "Input Data":
             if st.session_state["preprocessing"]:
                 st.session_state["preprocessing"] = False
             st.session_state["example_data"] = True
+            st.session_state["parsed"] = True
             V = None
 
             
@@ -661,6 +685,7 @@ if st.session_state["active_tab"] == "Input Data":
                 st.write(st.session_state["geno"][0:50, 0:50])
                 st.write("Ind (First Rows)")
                 st.write(st.session_state["ind"].head())
+            st.markdown('The following statistics are measured relative to the total of 540,247 genotypes included in the PCA analysis.')
             col1, col2 = st.columns(
             [0.3, 0.7],
             vertical_alignment="center",
@@ -678,12 +703,13 @@ if st.session_state["active_tab"] == "Input Data":
                     st.plotly_chart(st.session_state["missing_plot"], theme=None)
         with st.container(border=True):
             st.subheader("SmartPCA Plot")
+            st.markdown('This is an interactive plot! Use the legend to (de)select samples or zoom in for a closer look.')
             
             if "current_plot" not in st.session_state:
                 st.session_state["current_plot"] = "base"  # Standardmäßig den Base Plot anzeigen
 
             # Button zum Wechseln des Plots
-            if st.button("Color Moderns by Group"):
+            if st.button("Change Color Scheme"):
                 # Wechsel zwischen "base" und "color"
                 if st.session_state["current_plot"] == "base":
                     st.session_state["current_plot"] = "color"
@@ -693,16 +719,31 @@ if st.session_state["active_tab"] == "Input Data":
             # Plot basierend auf dem Zustand anzeigen
             if st.session_state["current_plot"] == "base":
                 st.plotly_chart(st.session_state["base_plot"], theme=None)
+                pdf_buffer = save_fig_as_pdf(st.session_state["base_plot"])
+                st.download_button(
+                    label="Download Figure as PDF",
+                    data=pdf_buffer,
+                    file_name="TRUST_PCA_download_SmartPCA_projection.pdf",
+                    mime="application/pdf"
+                )
             elif st.session_state["current_plot"] == "color":
                 st.plotly_chart(st.session_state["color_plot"], theme=None)
+                pdf_buffer = save_fig_as_pdf(st.session_state["color_plot"])
+                st.download_button(
+                    label="Download Figure as PDF",
+                    data=pdf_buffer,
+                    file_name="TRUST_PCA_download_SmartPCA_projection.pdf",
+                    mime="application/pdf"
+                )
     else:
         if st.session_state["example_data"]:
+            print("this case")
             ancient_example = pd.read_csv(path_to_database+"example_data_tool.csv", header=0)
             with open(path_to_database+"ellipses_example_data.pkl", "rb") as f:
                 ellipses = pickle.load(f)
                 st.session_state["ellipses"] = ellipses
             nines = ancient_example[["ID","coverage"]]
-            nines["coverage"]=nines["coverage"]/594924 * 100
+            nines["coverage"]=(100 - nines["coverage"]/540247 * 100)
             nines_dict = nines.set_index("ID")["coverage"].to_dict()
             st.session_state["nines"]=nines_dict
             st.session_state["missing_plot"] = plot_missing(st.session_state["nines"])
@@ -713,8 +754,8 @@ if st.session_state["active_tab"] == "Input Data":
             scaled_palette = [base_palette[i % len(base_palette)] for i in range(num_inds)]
             color_lookup = dict(zip(ancient_example["ID"], scaled_palette))
             st.session_state["color_lookup"] = color_lookup
-            fig = base_plot(modern, st.session_state["taus"], st.session_state["ind"], color_lookup)
-            color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"])
+            fig = base_plot(modern, st.session_state["taus"], st.session_state["ind"], color_lookup, explained_variance_ratio[0:2])
+            color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"], explained_variance_ratio[0:2])
             st.session_state["base_plot"] = fig
             st.session_state["color_plot"] = color_plot
             st.session_state["preprocessing"] = True
@@ -725,6 +766,8 @@ elif st.session_state["active_tab"] == "Uncertainty Analysis":
     if st.session_state["preprocessing"]:
         with st.container(border=True):
             st.subheader("SmartPCA Plot with Uncertainties")
+            st.markdown('This is an interactive plot! Use the legend to (de)select samples or zoom in for a closer look.')
+
             col1, col2 = st.columns([0.4, 0.6])
             with col1:
                 # change design muslitselect
@@ -735,7 +778,7 @@ elif st.session_state["active_tab"] == "Uncertainty Analysis":
                 key="percentile_selector",
                 on_change=update_percentiles
                 )      
-            if st.button("Color Moderns by Group"):
+            if st.button("Change Color Scheme"):
                 st.session_state["current_plot"] = "base" if st.session_state["current_plot"] == "color" else "color"
 
             if st.session_state["current_plot"] == "base":
