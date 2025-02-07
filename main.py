@@ -18,6 +18,8 @@ import itertools
 import plotly.express as px
 
 import streamlit.components.v1 as components
+import io
+
 
 ###########################################################################################################
 #file handling stuff, parsing
@@ -123,7 +125,7 @@ def plot_missing(nines):
 def compute_tau(geno, genomean, V, is_not_nani):
     snp_drift = np.sqrt((genomean / 2) * (1 - genomean / 2))
     geno_norm = (geno - genomean) / snp_drift
-    print(V.shape)
+
     V_obs = V[is_not_nani]
     proj_factor = np.linalg.inv(V_obs.T @ V_obs) @ V_obs.T
     tau = proj_factor @ geno_norm[is_not_nani]
@@ -446,6 +448,7 @@ div.stButton>button:hover {
 #path_to_database = "../../ancientPCA/database/"
 path_to_database = "./database/"
 modern = pd.read_csv(path_to_database+'coordinates_MWE.csv')
+example_data_stats = path_to_database+'test_samples_stats.csv'
 modern_df = pd.read_csv(path_to_database+'embedding_modern_refs.csv')
 groups = pd.read_csv(path_to_database+'modern_groups_curated.csv', header=0)
 modern_df['Group'] = groups['Group']
@@ -530,6 +533,18 @@ if "parsed" not in st.session_state:
     st.session_state["parsed"] = False
 if "color_lookup" not in st.session_state:
     st.session_state["color_lookup"] = False
+if "df_pca" not in st.session_state:
+    st.session_state["df_pca"] = None
+
+#get download csv stats for modern samples
+modern_stats = modern_df[["Group", "PC1", "PC2"]].copy()
+modern_stats.rename(columns={"Group": "Sample_ID"}, inplace=True)
+modern_stats["Variance_PC1"] = np.nan
+modern_stats["Variance_PC2"] = np.nan
+modern_stats["Covariance_PC1_PC2"] = np.nan
+modern_stats["Sample_Type"] = "Modern"
+
+st.session_state["modern_df"] = modern_stats
 
 
 tabs = ["Input Data", "Uncertainty Analysis", "More Infos on TrustPCA"]
@@ -590,7 +605,7 @@ if st.session_state["active_tab"] == "Input Data":
                             entry, value=st.session_state["checkbox_states"][i], key=f"checkbox_{i}"
                         )
 
-                if st.button("Submit Selection"):
+                if st.button("Submit Selection"): #, disabled=True):
                     if st.session_state["parsed"]:
                         print("parsed")
                         st.session_state["parsed"]=False
@@ -607,12 +622,12 @@ if st.session_state["active_tab"] == "Input Data":
                                 st.session_state["ind"] = parse_ind(output_ind_path)
                         else:
                             st.session_state["geno"] = parse_geno(geno_file)
-                            st.session_state["ind"] = ind_data
+                            st.session_state["ind"] = st.session_state["ind_file_parsed"]
                         st.session_state["parsed"]=True
                     status_banner = st.empty()
                     
             if st.session_state["parsed"]:
-                print("sample submitted")
+                status_banner = st.empty()
                 if not st.session_state["preprocessing"]:
                     status_banner.info("Filtering genos...")
                     nonv_geno = get_nonvariant_geno(st.session_state["geno"], indices)
@@ -620,13 +635,14 @@ if st.session_state["active_tab"] == "Input Data":
                     status_banner.info("Calculating missing statistics...")
                     nines, total_positions = missing_statistics(st.session_state["geno"], st.session_state["ind"])
                     st.session_state["nines"] = nines
-                    print(nines)
                     st.session_state["missing_plot"] = plot_missing(st.session_state["nines"])
                     is_not_nan = ~np.isnan(nonv_geno)
                     status_banner.info("Projecting samples...")
+                    
                     V = np.load(V_path)
                     taus = pmp_drift_parallel(nonv_geno, V[:, 0:2], genomean, is_not_nan, n_jobs=-1) #pmp_drift(nonv_geno, V, genomean, is_not_nan)
                     st.session_state["taus"] = taus
+
                     status_banner.info("Generating PCA plot...")
                     num_inds=st.session_state["ind"].shape[0]
                     scaled_palette = [base_palette[i % len(base_palette)] for i in range(num_inds)]
@@ -639,6 +655,7 @@ if st.session_state["active_tab"] == "Input Data":
                     st.session_state["color_plot"] = color_plot
 
                     ellipses = {} #ellipses can not be a df bc arrow compatibility or sth
+                    ellipse_stats = []  
                     status_banner.info("Calculating uncertainties...") 
 
                     progress_bar = st.progress(0)  # Start bei 0%
@@ -655,6 +672,26 @@ if st.session_state["active_tab"] == "Input Data":
                         # Predict variance of discrepency
                         V_obs = V[is_not_nani]
                         var_discr = var_discrepency(V_obs=V_obs, var_tau_r=var_tau_r)
+
+                         #for df
+                        variance_pc1 = var_discr[0, 0]
+                        variance_pc2 = var_discr[1, 1]
+                        covariance_pc1_pc2 = var_discr[0, 1]
+
+                        # Speichere diese Werte für den DataFrame
+                        ellipse_stats.append({
+                            "Sample_ID": curr_ind["ID"],
+                            "PC1": taus[index][0],
+                            "PC2": taus[index][1],
+                            "Variance_PC1": variance_pc1,
+                            "Variance_PC2": variance_pc2,
+                            "Covariance_PC1_PC2": covariance_pc1_pc2,
+                            "Sample_Type": "Ancient"  
+                        })
+
+                        st.session_state["df_pca"] = pd.concat([pd.DataFrame(ellipse_stats), st.session_state["modern_df"]], ignore_index=True)
+
+
                         #ellipses
                         for percentile in percentiles:
                             x, y = get_ellipse(mean=taus[index], Sigma=var_discr, confidence_level=percentile)
@@ -667,6 +704,7 @@ if st.session_state["active_tab"] == "Input Data":
                     st.session_state["preprocessing"] = True
                     V = None
                     st.rerun()
+
          
         if st.button("Use Example Data"):
             if st.session_state["preprocessing"]:
@@ -706,17 +744,15 @@ if st.session_state["active_tab"] == "Input Data":
             st.markdown('This is an interactive plot! Use the legend to (de)select samples or zoom in for a closer look.')
             
             if "current_plot" not in st.session_state:
-                st.session_state["current_plot"] = "base"  # Standardmäßig den Base Plot anzeigen
+                st.session_state["current_plot"] = "base"
 
-            # Button zum Wechseln des Plots
             if st.button("Change Color Scheme"):
-                # Wechsel zwischen "base" und "color"
                 if st.session_state["current_plot"] == "base":
                     st.session_state["current_plot"] = "color"
                 else:
                     st.session_state["current_plot"] = "base"
 
-            # Plot basierend auf dem Zustand anzeigen
+          
             if st.session_state["current_plot"] == "base":
                 st.plotly_chart(st.session_state["base_plot"], theme=None)
                 pdf_buffer = save_fig_as_pdf(st.session_state["base_plot"])
@@ -735,9 +771,19 @@ if st.session_state["active_tab"] == "Input Data":
                     file_name="TRUST_PCA_download_SmartPCA_projection.pdf",
                     mime="application/pdf"
                 )
+
+            csv_buffer = io.BytesIO()
+            st.session_state["df_pca"].to_csv(csv_buffer, index=False)
+            csv_buffer.seek(0)  
+
+            st.download_button(
+                label="Download PCA Data as CSV",
+                data=csv_buffer,
+                file_name="TRUST_PCA_data.csv",
+                mime="text/csv")
+            
     else:
         if st.session_state["example_data"]:
-            print("this case")
             ancient_example = pd.read_csv(path_to_database+"example_data_tool.csv", header=0)
             with open(path_to_database+"ellipses_example_data.pkl", "rb") as f:
                 ellipses = pickle.load(f)
@@ -758,6 +804,7 @@ if st.session_state["active_tab"] == "Input Data":
             color_plot = color_plot(modern_df, st.session_state["taus"], st.session_state["ind"], explained_variance_ratio[0:2])
             st.session_state["base_plot"] = fig
             st.session_state["color_plot"] = color_plot
+            st.session_state["df_pca"] = pd.read_csv(example_data_stats)
             st.session_state["preprocessing"] = True
             st.rerun()
 
@@ -803,17 +850,6 @@ elif st.session_state["active_tab"] == "Uncertainty Analysis":
                         showlegend=False,
                         name=f"{percentile}"
                     ))
-            
-
-            #sadly, the tau traces have to be added again, bc they are overwritten by the ellipses and should go to the foreground (no better way)
-            #if st.session_state["current_plot"] == "base":
-            #    for trace in st.session_state["base_plot"].data:
-            #        if trace.legendgroup in st.session_state["ind"]["ID"].values:
-            #            fig.add_trace(trace)
-            #else:
-            #    for trace in st.session_state["color_plot"].data:
-            #        if trace.legendgroup in st.session_state["ind"]["ID"].values:
-            #            fig.add_trace(trace)
 
             st.plotly_chart(fig, theme=None)
             st.session_state["ellipse_plot"] = fig
@@ -825,6 +861,16 @@ elif st.session_state["active_tab"] == "Uncertainty Analysis":
                 file_name="TRUST_PCA_download.pdf",
                 mime="application/pdf"
             )
+
+            csv_buffer = io.BytesIO()
+            st.session_state["df_pca"].to_csv(csv_buffer, index=False)
+            csv_buffer.seek(0)  
+            
+            st.download_button(
+                label="Download PCA Data as CSV",
+                data=csv_buffer,
+                file_name="TRUST_PCA_data.csv",
+                mime="text/csv")
     else:
         st.markdown("No data available. Please upload your file or choose example data from the Input Data tab.")
 
@@ -850,8 +896,8 @@ elif st.session_state["active_tab"] == "More Infos on TrustPCA":
     ### How It Works
     - Upload your **EIGENSTRAT files** or use our example data.
     - Select the **individuals** to include in the PCA.
-    - The tool **projects your ancient samples** onto the reference PCA.
-    - **Uncertainty ellipses** visualize confidence intervals based on missing SNP rates.
+    - The tool **projects your ancient samples** onto the reference PCA (Estimated duration: 1 second per sample).
+    - **Uncertainty ellipses** visualize confidence intervals based on missing SNP rates (Estimated duration: 1.4 seconds per sample).
     - Download your results as a **PDF report**.
     ---
     ### Citation & References
