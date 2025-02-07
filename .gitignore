@@ -170,3 +170,10 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 data/*
+
+.DS_Store
+._.DS_Store
+data/genotype_ancient_refs.npy
+data/modern_genotypes.npy
+data/eigenvectors.npy
+database/eigenvectors.npy
