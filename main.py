@@ -876,9 +876,9 @@ elif st.session_state["active_tab"] == "Uncertainty Analysis":
 
 # Tab 3
 elif st.session_state["active_tab"] == "More Infos on TrustPCA":
-    st.markdown("TrustPCA is an advanced tool for **Principal Component Analysis (PCA) of ancient human genomic data**, providing robust **estimation of placement variability**.")
-    st.markdown("Using the PC space derived from modern West Eurasian genotype data, TrustPCA enables users to project ancient samples similarly to SmartPCA.")
-    st.markdown("It predicts projection uncertainties based on missing loci in the provided samples, visualizing these as uncertainty ellipses on PC plots, representing different confidence levels for sample placements. All outputs, including statistical summaries and visualizations, can be exported as PDFs for easy integration into research workflows.")
+    st.markdown("TrustPCA is an advanced tool for **Principal Component Analysis (PCA) of ancient human genomic data**, providing an **estimation of projection uncertainty** of genotype individuals.")
+    st.markdown("Using a **modern West Eurasian reference PC space**, TrustPCA enables the projection of ancient individuals, similar to SmartPCA. However, TrustPCA goes further by estimating **projection uncertainties** based on missing loci in the provided samples. These uncertainties are visualized as **ellipses on PCA plots**, representing different confidence levels for sample placement.")
+    st.markdown("All outputs, including **statistical summaries and visualizations**, can be exported as PDFs for seamless integration into research workflows.")
     
     st.markdown("""
     ### Supported Data Formats
@@ -886,7 +886,6 @@ elif st.session_state["active_tab"] == "More Infos on TrustPCA":
     The following files are required:
     - **GENO file** (`*.geno`): Genotype matrix with SNP data in a compact format.
     - **IND file** (`*.ind`): Information about individuals (ID, population, gender).
-    - **SNP file** (`*.snp`): SNP names and genomic positions.
     """)
     st.markdown("""
     More details can be found in the official documentation:
@@ -894,11 +893,14 @@ elif st.session_state["active_tab"] == "More Infos on TrustPCA":
     - [SmartPCA Documentation](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/chrchang/eigensoft/blob/master/POPGEN)
     ---
     ### How It Works
-    - Upload your **EIGENSTRAT files** or use our example data.
-    - Select the **individuals** to include in the PCA.
-    - The tool **projects your ancient samples** onto the reference PCA (Estimated duration: 1 second per sample).
-    - **Uncertainty ellipses** visualize confidence intervals based on missing SNP rates (Estimated duration: 1.4 seconds per sample).
-    - Download your results as a **PDF report**.
+    1) **Upload** your EIGENSTRAT files or use the provided example dataset.  
+    2) **Select** individuals to be included in the analysis and **start the computation**.  
+        - Ancient individuals are projected similar to SmartPCA onto the reference PC space (**~1 sec per sample**).  
+        - Projection uncertainties are calculated for all individuals (**~1.4 sec per sample**). 
+    3) **Explore** the results (be aware of the different tabs!):
+        - Inspect the SmartPCA projections of the ancient individuals.
+        - Inspect the projection uncertainties visualized as confidence ellipses.
+    5) **Download figures** as a .pdf and **download data** as .csv.
     ---
     ### Citation & References
     If you use TRUST PCA in your research, please cite:
