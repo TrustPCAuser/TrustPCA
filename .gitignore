@@ -177,3 +177,5 @@ data/genotype_ancient_refs.npy
 data/modern_genotypes.npy
 data/eigenvectors.npy
 database/eigenvectors.npy
+data/eigenvectors1.npy
+data/eigenvectors2.npy

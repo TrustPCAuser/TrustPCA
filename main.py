@@ -455,7 +455,8 @@ modern_df['Group'] = groups['Group']
 indices = pd.read_csv(path_to_database+'SNPs_mwe.csv', header=0)
 genomean = pd.read_csv(path_to_database+'genomean.csv', header=0)
 genomean = genomean['x'].values
-V_path = path_to_database+'eigenvectors.npy'
+V1_path = path_to_database+'eigenvectors1.npy'
+V2_path = path_to_database+'eigenvectors2.npy'
 Lambda = np.load(path_to_database+'eigenvalues.npy')
 magical_factors = np.load(path_to_database+'factors.npy')
 
@@ -639,7 +640,9 @@ if st.session_state["active_tab"] == "Input Data":
                     is_not_nan = ~np.isnan(nonv_geno)
                     status_banner.info("Projecting samples...")
                     
-                    V = np.load(V_path)
+                    V1 = np.load(V1_path)
+                    V2 = np.load(V2_path)
+                    V = np.vstack([V1, V2])
                     taus = pmp_drift_parallel(nonv_geno, V[:, 0:2], genomean, is_not_nan, n_jobs=-1) #pmp_drift(nonv_geno, V, genomean, is_not_nan)
                     st.session_state["taus"] = taus
 
